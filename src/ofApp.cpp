@@ -151,10 +151,10 @@ void ofApp::update()
 void ofApp::draw()
 {
 	ofLog(OF_LOG_NOTICE, "fps: " + ofToString(ofGetFrameRate()) + " xAxis1: " + ofToString(xAxis1) + " yAxis1:" + ofToString(yAxis1) + " xAxis2:" + ofToString(xAxis2) + " yAxis2:" + ofToString(yAxis2));
-	if (!player.isUsingTexture())
-	{
-		return;
-	}
+	// if (!player.isUsingTexture())
+	// {
+	// 	return;
+	// }
 	if (noInput == true)
 	{
 		image1.draw(0, 0, ofGetWidth(), ofGetHeight());
