@@ -1,2 +1,1 @@
-ofxWiringPi
-ofxOMXPlayer
+ofxMidi

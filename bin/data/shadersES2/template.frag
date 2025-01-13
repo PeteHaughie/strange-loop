@@ -1,6 +1,3 @@
-
-precision highp float;
-
 uniform sampler2D tex0;
 //in1 and in2 are linked to the third knob and
 // the left/right axis of the analog, they go from
@@ -16,10 +13,6 @@ uniform float dispY;
 
 varying vec2 texCoordVarying;
 
-
-
-
-
 void main(){
 	vec4 color = texture2D(tex0, texCoordVarying+vec2(dispX, dispY));
 	float in1Scaled = (in1 * /*some value*/ ) + /*some value*/;  
@@ -27,11 +20,4 @@ void main(){
 	
 	color.rgb = /* do something with the two scaled and biased inputs*/;
 	gl_FragColor = color;
-	
-
 }
-
-
-
-
-
