@@ -1,2 +1,6 @@
 obj
 *.mp4
+*.app
+.vscode/browse.db
+.vscode/browse.db-shm
+.vscode/browse.db-wal
