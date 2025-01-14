@@ -2,12 +2,14 @@
 
 #include "ofMain.h"
 #include <ofxMidi.h>
+// #include <ofxMidiConstants.h>
 
 typedef std::vector<std::string> stringvec;
 
 class ofApp : public ofBaseApp, public ofxMidiListener
 {
 public:
+	~ofApp() noexcept override;
 	void setup();
 	void update();
 	void draw();

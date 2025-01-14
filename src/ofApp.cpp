@@ -9,6 +9,12 @@
 
 namespace fs = std::filesystem;
 
+ofApp::~ofApp() noexcept
+{
+	midiIn.closePort();
+	midiIn.removeListener(this);
+}
+
 //--------------------------------------------------------------
 void ofApp::setup()
 {
