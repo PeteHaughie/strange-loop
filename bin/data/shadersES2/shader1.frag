@@ -1,3 +1,5 @@
+#version 120
+
 uniform sampler2D tex0;
 
 uniform float in1;

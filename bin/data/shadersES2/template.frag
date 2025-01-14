@@ -1,3 +1,5 @@
+#version 120
+
 uniform sampler2D tex0;
 //in1 and in2 are linked to the third knob and
 // the left/right axis of the analog, they go from
