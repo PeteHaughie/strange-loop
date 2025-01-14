@@ -29,9 +29,9 @@ public:
 
 	ofxMidiIn midiIn;
 	std::map<int, float> midiCCValues;
-	float pot1Value, pot2Value, pot3Value, pot4Value;
-	bool button1Value, button2Value;
-	int nClicks1, nClicks2;
+	float pot1Value, pot2Value, pot3Value, pot4Value = 0.0;
+	bool button1Value, button2Value = 0;
+	int nClicks1, nClicks2 = 0;
 	ofFbo buffer, buffer2, buffer3;
 	ofShader shader1, shader2, shader3, shader4, lumakey, shader6;
 	ofVideoGrabber cam;

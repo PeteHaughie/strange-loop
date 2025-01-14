@@ -26,14 +26,10 @@ void ofApp::setup()
 	lumakey.load("shadersES2/lumakey");
 	shader6.load("shadersES2/hueShift");
 
-    // Initialize MIDI
-    midiIn.openPort(0); // Use first MIDI port
-    midiIn.addListener(this);
-    midiIn.setVerbose(true);
-
-	pot1Value = pot2Value = pot3Value = pot4Value = 0.0;
-	nClicks1 = nClicks2 = 0;
-	button1Value = button2Value = false;
+	// Initialize MIDI
+	midiIn.openPort(0); // Use first MIDI port
+	midiIn.addListener(this);
+	midiIn.setVerbose(true);
 
 	image1.load("images/noInput.png");
 
@@ -115,11 +111,9 @@ void ofApp::setup()
 	}
 	else if (videos.size() > 0)
 	{
-		// ofxOMXPlayerSettings settings;
-		// settings.enableAudio = false;
-		// player.loadMovie(videos[num]);
 		player.load(videos[num]);
 		player.setLoopState(OF_LOOP_NORMAL);
+		player.play();
 	}
 	if (images.size() > 0)
 	{
@@ -135,38 +129,73 @@ void ofApp::setup()
 
 void ofApp::update()
 {
-	powerOffCheckRoutine();
-	if (!isReady)
-	{
-		return;
-	}
+	// powerOffCheckRoutine();
 
 	if (camOn)
 	{
 		cam.update();
 	}
-	// Here are calle the methods that read the device controls and check that
-	// the loaded video is playing back correctly. Check them out, they're after the draw method.
+
 	checkClicksRoutine();
 	checkJoysticksRoutine();
 	updateControlsRoutine();
 	checkVideoPlayback();
+	player.update();
+	if (player.isFrameNew())
+	{
+		texture1 = player.getTexture();
+	}
 }
 
 //--------------------------------------------------------------
 void ofApp::draw()
 {
 	ofLog(OF_LOG_NOTICE, "fps: " + ofToString(ofGetFrameRate()) + " xAxis1: " + ofToString(xAxis1) + " yAxis1:" + ofToString(yAxis1) + " xAxis2:" + ofToString(xAxis2) + " yAxis2:" + ofToString(yAxis2));
-	// if (!player.isUsingTexture())
-	// {
-	// 	return;
-	// }
+	if (!texture1.isAllocated())
+	{
+		return;
+	}
 	if (noInput == true)
 	{
 		image1.draw(0, 0, ofGetWidth(), ofGetHeight());
 	}
 	else
 	{
+
+		// draw our debug surfaces
+		player.draw(20, 10, ofGetWidth() / 4, ofGetHeight() / 4);
+		texture1.draw((ofGetWidth() / 2) - ((ofGetWidth() / 4) - (ofGetWidth() / 4)), 10, ofGetWidth() / 4, ofGetHeight() / 4);
+		cam.draw(ofGetWidth() - (ofGetWidth() / 4) - 20, 10, ofGetWidth() / 4, ofGetHeight() / 4);
+
+		// buttons
+		ofSetColor(ofMap(button1Value, 0, 1, 0, 255), ofMap(button1Value, 0, 1, 0, 255), ofMap(button1Value, 0, 1, 0, 255), 255);
+		ofDrawCircle(20, ofGetHeight() - 40, 5);
+		ofSetColor(ofMap(button2Value, 0, 1, 0, 255), ofMap(button2Value, 0, 1, 0, 255), ofMap(button2Value, 0, 1, 0, 255), 255);
+		ofDrawCircle(35, ofGetHeight() - 40, 5);
+
+		// potentiometers
+		ofSetColor(ofMap(pot1Value, 0, 1, 0, 255), ofMap(pot1Value, 0, 1, 0, 255), ofMap(pot1Value, 0, 1, 0, 255), 255);
+		ofDrawCircle(20, ofGetHeight() - 25, 5);
+		ofSetColor(ofMap(pot2Value, 0, 1, 0, 255), ofMap(pot2Value, 0, 1, 0, 255), ofMap(pot2Value, 0, 1, 0, 255), 255);
+		ofDrawCircle(35, ofGetHeight() - 25, 5);
+		ofSetColor(ofMap(pot3Value, 0, 1, 0, 255), ofMap(pot3Value, 0, 1, 0, 255), ofMap(pot3Value, 0, 1, 0, 255), 255);
+		ofDrawCircle(50, ofGetHeight() - 25, 5);
+		ofSetColor(ofMap(pot4Value, 0, 1, 0, 255), ofMap(pot4Value, 0, 1, 0, 255), ofMap(pot4Value, 0, 1, 0, 255), 255);
+		ofDrawCircle(65, ofGetHeight() - 25, 5);
+
+		// joystick 1
+		ofSetColor(ofMap(xAxis1, 0, 1, 0, 255), ofMap(xAxis1, 0, 1, 0, 255), ofMap(xAxis1, 0, 1, 0, 255), 255);
+		ofDrawCircle(20, ofGetHeight() - 10, 5);
+		ofSetColor(ofMap(yAxis1, 0, 1, 0, 255), ofMap(yAxis1, 0, 1, 0, 255), ofMap(yAxis1, 0, 1, 0, 255), 255);
+		ofDrawCircle(35, ofGetHeight() - 10, 5);
+		// joystick 2
+		ofSetColor(ofMap(xAxis2, 0, 1, 0, 255), ofMap(xAxis2, 0, 1, 0, 255), ofMap(xAxis2, 0, 1, 0, 255), 255);
+		ofDrawCircle(50, ofGetHeight() - 10, 5);
+		ofSetColor(ofMap(yAxis2, 0, 1, 0, 255), ofMap(yAxis2, 0, 1, 0, 255), ofMap(yAxis2, 0, 1, 0, 255), 255);
+		ofDrawCircle(65, ofGetHeight() - 10, 5);
+
+		// reset the fill colour
+		ofSetColor(ofColor::white);
 
 		buffer.begin();
 
@@ -259,6 +288,7 @@ void ofApp::draw()
 		}
 
 		buffer.end();
+
 		buffer2.begin();
 		ofClear(255, 255, 255, 0);
 
@@ -279,12 +309,15 @@ void ofApp::draw()
 
 		lumakey.end();
 		buffer2.end();
+
 		buffer3.begin();
 		buffer.draw(0, 0);
 		buffer2.draw(0, 0);
 		buffer3.end();
+
 		// Load here the feedback
 		texture1 = buffer3.getTexture();
+
 		// FINAL HUE+SAT ADJUST
 		shader6.begin();
 
@@ -580,11 +613,75 @@ void ofApp::updateControlsRoutine()
 */
 
 //--------------------------------------------------------------
-void ofApp::updateControlsRoutine() {
-    keyTresh = midiCCValues[1]; // Example: CC1 for key threshold
-    knob = midiCCValues[2];     // Example: CC2 for knob value
-    zoom = ofMap(midiCCValues[3], 0.0, 1.0, -50, +50); // CC3 mapped to zoom
-    rotate = ofMap(midiCCValues[4], 0.0, 1.0, -10.0, 10.0); // CC4 mapped to rotate
+void ofApp::updateControlsRoutine()
+{
+	for (auto &kv : midiCCValues)
+	{
+		// clicks
+		if (kv.first == 58)
+		{
+			if (kv.second == 1)
+			{
+				button1Value = 1;
+				nClicks1++;
+			}
+			else
+			{
+				button1Value = 0;
+			}
+		}
+		if (kv.first == 59)
+		{
+			if (kv.second == 1)
+			{
+				button2Value = 1;
+				nClicks2++;
+			}
+			else
+			{
+				button2Value = 0;
+			}
+		}
+		// joystick 1
+		if (kv.first == 0)
+		{
+			xAxis1 = kv.second;
+		}
+		if (kv.first == 1)
+		{
+			yAxis1 = kv.second;
+		}
+		// joystick 2
+		if (kv.first == 2)
+		{
+			xAxis2 = kv.second;
+		}
+		if (kv.first == 3)
+		{
+			yAxis2 = kv.second;
+		}
+		// potentiometers
+		if (kv.first == 16)
+		{
+			pot1Value = kv.second;
+		}
+		if (kv.first == 17)
+		{
+			pot2Value = kv.second;
+		}
+		if (kv.first == 18)
+		{
+			pot3Value = kv.second;
+		}
+		if (kv.first == 19)
+		{
+			pot4Value = kv.second;
+		}
+	}
+	// 	keyTresh = midiCCValues[1];															// Example: CC1 for key threshold
+	// 	knob = midiCCValues[2];																	// Example: CC2 for knob value
+	// 	zoom = ofMap(midiCCValues[3], 0.0, 1.0, -50, +50);			// CC3 mapped to zoom
+	// 	rotate = ofMap(midiCCValues[4], 0.0, 1.0, -10.0, 10.0); // CC4 mapped to rotate
 }
 
 //--------------------------------------------------------------
@@ -700,10 +797,12 @@ void ofApp::checkVideoPlayback()
 }
 
 //--------------------------------------------------------------
-void ofApp::newMidiMessage(ofxMidiMessage& message) {
-    if (message.status == MIDI_CONTROL_CHANGE) {
-        midiCCValues[message.control] = message.value / 127.0f; // Normalize 0–127 to 0.0–1.0
-    }
+void ofApp::newMidiMessage(ofxMidiMessage &message)
+{
+	if (message.status == MIDI_CONTROL_CHANGE)
+	{
+		midiCCValues[message.control] = message.value / 127.0f; // Normalize 0–127 to 0.0–1.0
+	}
 }
 
 //--------------------------------------------------------------
