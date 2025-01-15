@@ -18,7 +18,11 @@ ofApp::~ofApp() noexcept
 //--------------------------------------------------------------
 void ofApp::setup()
 {
-	ofSetVerticalSync(false);
+	// default app settings
+	ofSetVerticalSync(true);
+	ofSetFrameRate(60);
+
+	// shaders
 	shader1.load("shadersES2/shader1");
 	shader2.load("shadersES2/shader2");
 	shader3.load("shadersES2/shader3");
@@ -26,18 +30,18 @@ void ofApp::setup()
 	lumakey.load("shadersES2/lumakey");
 	shader6.load("shadersES2/hueShift");
 
-	// Initialize MIDI
+	// initialize MIDI
 	midiIn.openPort(0); // Use first MIDI port
 	midiIn.addListener(this);
 	midiIn.setVerbose(true);
 
 	image1.load("images/noInput.png");
 
-	// CONTROL VARIABLES
-	yAxis1 = 0.0;
+	// control variables
 	xAxis1 = 0.0;
-	xAxis2 = 0.5;
-	yAxis2 = 0.5;
+	yAxis1 = 0.0;
+	xAxis2 = 0.0;
+	yAxis2 = 0.0;
 	nClicks1 = 0;
 	nClicks2 = 0;
 	selector = 1;
@@ -58,9 +62,8 @@ void ofApp::setup()
 
 	path = "../../../data/videos";
 
-	ofHideCursor();
+	// ofHideCursor();
 	ofBackground(0, 0, 0);
-	ofSetFrameRate(30);
 	texture1.allocate(ofGetWidth(), ofGetHeight(), GL_RGBA);
 	buffer.allocate(ofGetWidth(), ofGetHeight(), GL_RGBA);
 	buffer2.allocate(ofGetWidth(), ofGetHeight(), GL_RGBA);
@@ -141,10 +144,10 @@ void ofApp::update()
 	updateControlsRoutine();
 	checkVideoPlayback();
 	player.update();
-	if (player.isFrameNew())
-	{
-		texture1 = player.getTexture();
-	}
+	// if (player.isFrameNew())
+	// {
+	// 	texture1 = player.getTexture();
+	// }
 }
 
 //--------------------------------------------------------------
@@ -163,9 +166,12 @@ void ofApp::draw()
 	{
 
 		// draw our debug surfaces
-		player.draw(20, 10, ofGetWidth() / 4, ofGetHeight() / 4);
-		texture1.draw((ofGetWidth() / 2) - ((ofGetWidth() / 4) - (ofGetWidth() / 4)), 10, ofGetWidth() / 4, ofGetHeight() / 4);
-		cam.draw(ofGetWidth() - (ofGetWidth() / 4) - 20, 10, ofGetWidth() / 4, ofGetHeight() / 4);
+		ofSetColor(ofColor::green);
+		ofDrawBitmapString("fps: " + ofToString((int)ofGetFrameRate()) + ", clicks1: " + ofToString(nClicks1) + ", clicks2: " + ofToString(nClicks2), 20, 20);
+		ofSetColor(ofColor::white);
+		player.draw(20, 50, ofGetWidth() / 4, ofGetHeight() / 4);
+		texture1.draw((ofGetWidth() / 2) - ((ofGetWidth() / 4) / 2), 50, ofGetWidth() / 4, ofGetHeight() / 4);
+		cam.draw(ofGetWidth() - (ofGetWidth() / 4) - 20, 50, ofGetWidth() / 4, ofGetHeight() / 4);
 
 		// buttons
 		ofSetColor(ofMap(button1Value, 0, 1, 0, 255), ofMap(button1Value, 0, 1, 0, 255), ofMap(button1Value, 0, 1, 0, 255), 255);
@@ -343,122 +349,103 @@ void ofApp::draw()
 }
 
 //--------------------------------------------------------------
-void ofApp::checkClicksRoutine()
-{
-	switch (nClicks1)
-	{
-	case 1:
-		// Center the framebuffer position
-		xAxis1 = 0;
-		yAxis1 = 0;
-		nClicks1 = 0;
-		break;
+void ofApp::checkClicksRoutine() {
+    uint64_t currentTime = ofGetElapsedTimeMillis();
 
-	case 2:
-		// Change source position, rotation and zoom, or go back
-		// to changing parameters in the feedback
-		if (!paintMode)
-		{
-			sourceParamMode = !sourceParamMode;
-			if (sourceParamMode)
-			{
-				sourceZoomWaitRecall = true;
-				sourceRotateWaitRecall = true;
-				xAxis1 = sourceDispX;
-				yAxis1 = sourceDispY;
-			}
-			else
-			{
-				feedbackZoomWaitRecall = true;
-				feedbackRotateWaitRecall = true;
-				xAxis1 = dispX;
-				yAxis1 = dispY;
-			}
-		}
-		nClicks1 = 0;
-		break;
+    // Handle Button 1 clicks
+    if (button1Value) {
+        if (!clickCounter1) { // Start counting clicks
+            clickCounter1 = 1;
+            nClicks1 = 0;
+            ofLogNotice() << "Button 1 pressed, starting click counter.";
+        }
+        if (currentTime - beginTime > timer) { // Debounce logic
+            beginTime = currentTime;
+            nClicks1++;
+            ofLogNotice() << "Button 1 click count: " << nClicks1;
+        }
+    } else if (clickCounter1) { // Button released
+        if (currentTime - beginTime > timer) { // Time elapsed since last click
+            clickCounter1 = 0; // Reset the counter
+            ofLogNotice() << "Button 1 released, total clicks: " << nClicks1;
 
-	case 3:
-		// Jump to next video
-		if (!paintMode)
-		{
-			nextVideo();
-		}
-		else
-		{
-			nextImage();
-		}
-		nClicks1 = 0;
-		break;
+            switch (nClicks1) {
+                case 1:
+                    xAxis1 = 0; yAxis1 = 0; // Reset position
+                    break;
+                case 2:
+                    sourceParamMode = !sourceParamMode; // Toggle mode
+                    if (sourceParamMode) {
+                        sourceZoomWaitRecall = true;
+                        sourceRotateWaitRecall = true;
+                        xAxis1 = sourceDispX;
+                        yAxis1 = sourceDispY;
+                    } else {
+                        feedbackZoomWaitRecall = true;
+                        feedbackRotateWaitRecall = true;
+                        xAxis1 = dispX;
+                        yAxis1 = dispY;
+                    }
+                    break;
+                case 3:
+                    (!paintMode) ? nextVideo() : nextImage(); // Next video/image
+                    break;
+                default:
+                    break;
+            }
+            nClicks1 = 0; // Reset click count
+        }
+    }
 
-	default:
-		nClicks1 = 0;
-		break;
-	}
+    // Handle Button 2 clicks (similar logic to Button 1)
+    if (button2Value) {
+        if (!clickCounter2) {
+            clickCounter2 = 1;
+            nClicks2 = 0;
+            ofLogNotice() << "Button 2 pressed, starting click counter.";
+        }
+        if (currentTime - beginTime > timer) {
+            beginTime = currentTime;
+            nClicks2++;
+            ofLogNotice() << "Button 2 click count: " << nClicks2;
+        }
+    } else if (clickCounter2) {
+        if (currentTime - beginTime > timer) {
+            clickCounter2 = 0;
+            ofLogNotice() << "Button 2 released, total clicks: " << nClicks2;
 
-	switch (nClicks2)
-	{
-	case 1:
-		// Zero out the feedback parameters and clear the
-		// frame buffer
-		xAxis2 = 0.0;
-		yAxis2 = 0.5;
-		buffer.begin();
-		ofClear(255, 255, 255, 0);
-		buffer.end();
-		buffer2.begin();
-		ofClear(255, 255, 255, 0);
-		buffer2.end();
-		buffer3.begin();
-		ofClear(255, 255, 255, 0);
-		buffer3.end();
-		nClicks2 = 0;
-		break;
-
-	case 2:
-		// Change feedback mode
-		if (selector < 5)
-		{
-			selector++;
-		}
-		else
-		{
-			selector = 1;
-		}
-		nClicks2 = 0;
-		break;
-	case 3:
-		// Go to paint mode (if images are present) and back
-		if (images.size() > 0)
-		{
-			paintMode = !paintMode;
-			if (paintMode)
-			{
-				xAxis1 = 0;
-				yAxis1 = 0;
-			}
-			else
-			{
-				feedbackRotateWaitRecall = true;
-				feedbackZoomWaitRecall = true;
-				xAxis1 = dispX;
-				yAxis1 = dispX;
-			}
-		}
-		nClicks2 = 0;
-		break;
-	case 4:
-		// switch from capture to stored videos mode if possible
-		if (cam.isInitialized() && videos.size() > 0)
-		{
-			camOn = !camOn;
-		}
-		nClicks2 = 0;
-		break;
-	default:
-		nClicks2 = 0;
-		break;
-	}
+            switch (nClicks2) {
+                case 1:
+                    xAxis2 = 0.0; yAxis2 = 0.5;
+                    buffer.begin(); ofClear(255, 255, 255, 0); buffer.end();
+                    buffer2.begin(); ofClear(255, 255, 255, 0); buffer2.end();
+                    buffer3.begin(); ofClear(255, 255, 255, 0); buffer3.end();
+                    break;
+                case 2:
+                    selector = (selector < 5) ? selector + 1 : 1; // Change feedback mode
+                    break;
+                case 3:
+                    if (!images.empty()) {
+                        paintMode = !paintMode;
+                        if (paintMode) {
+                            xAxis1 = 0; yAxis1 = 0;
+                        } else {
+                            feedbackRotateWaitRecall = true;
+                            feedbackZoomWaitRecall = true;
+                            xAxis1 = dispX;
+                            yAxis1 = dispY;
+                        }
+                    }
+                    break;
+                case 4:
+                    if (cam.isInitialized() && !videos.empty()) camOn = !camOn; // Toggle camera mode
+                    break;
+                default:
+                    break;
+            }
+            nClicks2 = 0;
+        }
+    }
 }
 
 //--------------------------------------------------------------
@@ -623,7 +610,7 @@ void ofApp::updateControlsRoutine()
 			if (kv.second == 1)
 			{
 				button1Value = 1;
-				nClicks1++;
+				// nClicks1 = 1;
 			}
 			else
 			{
@@ -635,7 +622,7 @@ void ofApp::updateControlsRoutine()
 			if (kv.second == 1)
 			{
 				button2Value = 1;
-				nClicks2++;
+				// nClicks2 = 1;
 			}
 			else
 			{
@@ -678,10 +665,6 @@ void ofApp::updateControlsRoutine()
 			pot4Value = kv.second;
 		}
 	}
-	// 	keyTresh = midiCCValues[1];															// Example: CC1 for key threshold
-	// 	knob = midiCCValues[2];																	// Example: CC2 for knob value
-	// 	zoom = ofMap(midiCCValues[3], 0.0, 1.0, -50, +50);			// CC3 mapped to zoom
-	// 	rotate = ofMap(midiCCValues[4], 0.0, 1.0, -10.0, 10.0); // CC4 mapped to rotate
 }
 
 //--------------------------------------------------------------
@@ -799,10 +782,9 @@ void ofApp::checkVideoPlayback()
 //--------------------------------------------------------------
 void ofApp::newMidiMessage(ofxMidiMessage &message)
 {
-	if (message.status == MIDI_CONTROL_CHANGE)
-	{
-		midiCCValues[message.control] = message.value / 127.0f; // Normalize 0–127 to 0.0–1.0
-	}
+    if (message.status == MIDI_CONTROL_CHANGE) {
+        midiCCValues[message.control] = message.value / 127.0f; // Normalize 0–127 to 0.0–1.0
+    }
 }
 
 //--------------------------------------------------------------
