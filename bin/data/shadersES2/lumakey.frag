@@ -1,4 +1,4 @@
-#version 120
+OF_GLSL_SHADER_HEADER
 
 uniform sampler2D tex0;
 
@@ -6,13 +6,15 @@ uniform float th1;
 
 uniform float op1;
 
-varying vec2 texCoordVarying;
+uniform vec2 resolution;
 
-//SOFT LUMA KEY
-//"CREDIT": "by IMIMOT (ported from http://www.memo.tv/)",
+// SOFT LUMA KEY
+// "CREDIT": "by IMIMOT (ported from http://www.memo.tv/)",
 
 void main() {
-  vec4 pix = texture2D(tex0, texCoordVarying);
+  vec2 uv = gl_FragCoord.xy / resolution.xy;
+  uv = clamp(uv, 0.0, 1.0);
+  vec4 pix = texture2D(tex0, uv);
   float th1Scaled = th1 * 1.7 - 0.85;
   float fValue = pix.r * 0.29 + pix.g * 0.6 + pix.b * 0.11;
   float l1 = abs(th1Scaled) - 0.09;
@@ -23,10 +25,9 @@ void main() {
 
   // final mix needed to make alpha working
   vec4 color = mix(vec4(pix.rgb, 0.0), pix, pix.a);
-  gl_FragColor = vec4(
-    mix(color.rgb, 1.0 - color.rgb, 1.0 - pix.a),
-    color.w + op1
-  );
-
+  // gl_FragColor = vec4(
+  //   mix(color.rgb, 1.0 - color.rgb, 1.0 - pix.a),
+  //   color.w + op1
+  // );
+  gl_FragColor = color;
 }
-

@@ -1,4 +1,4 @@
-#version 120
+OF_GLSL_SHADER_HEADER
 
 uniform sampler2D tex0;
 //in1 and in2 are linked to the third knob and
@@ -13,13 +13,15 @@ uniform float dispX;
 
 uniform float dispY;
 
-varying vec2 texCoordVarying;
+uniform vec2 resolution;
 
 void main(){
-	vec4 color = texture2D(tex0, texCoordVarying+vec2(dispX, dispY));
-	float in1Scaled = (in1 * /*some value*/ ) + /*some value*/;  
-	float in2Scaled = (in2 * /*some value*/ ) + /*some value*/ ;
+	vec2 uv = gl_FragCoord.xy / resolution.xy;
+	uv = clamp(uv, 0.0, 1.0);
+	// vec4 color = texture2D(tex0, uv + vec2(dispX, dispY));
+	// float in1Scaled = (in1 * /*some value*/ ) + /*some value*/;  
+	// float in2Scaled = (in2 * /*some value*/ ) + /*some value*/ ;
 	
-	color.rgb = /* do something with the two scaled and biased inputs*/;
-	gl_FragColor = color;
+	// color.rgb = /* do something with the two scaled and biased inputs*/;
+	gl_FragColor = vec4(texture2D(tex0, uv));
 }

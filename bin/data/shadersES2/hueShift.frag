@@ -1,4 +1,4 @@
-#version 120
+OF_GLSL_SHADER_HEADER
 
 uniform sampler2D tex0;
 
@@ -6,7 +6,7 @@ uniform float hue;
 
 uniform float in2;
 
-varying vec2 texCoordVarying;
+uniform vec2 resolution;
 
 vec3 hueShift(vec3 color, float hueAdjust, float saturation) {
   //implemented by mairod
@@ -26,11 +26,13 @@ vec3 hueShift(vec3 color, float hueAdjust, float saturation) {
   I = chroma * cos(hue2);
   vec3 yIQ = vec3(YPrime, I, Q);
   return vec3(dot(yIQ, kYIQToR), dot(yIQ, kYIQToG), dot(yIQ, kYIQToB));
-
 }
-void main() {
-  //change Hue
-  vec4 color = texture2D(tex0, texCoordVarying);
-  gl_FragColor = vec4(hueShift(color.xyz, hue, in2 * 2.0), 1.0);
 
+void main() {
+  // change Hue
+  vec2 uv = gl_FragCoord.xy / resolution.xy;
+  uv = clamp(uv, 0.0, 1.0);
+  vec4 color = texture2D(tex0, uv);
+  // gl_FragColor = vec4(hueShift(color.xyz, hue, in2 * 2.0), 1.0);
+  gl_FragColor = color;
 }

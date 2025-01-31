@@ -25,6 +25,7 @@ public:
 	void checkJoysticksRoutine();
 	void updateControlsRoutine();
 	void checkVideoPlayback();
+	void keyPressed(int key);
 	void newMidiMessage(ofxMidiMessage& message);
 
 	ofxMidiIn midiIn;
@@ -35,18 +36,20 @@ public:
 	int timer = 100;
 	int clickCounter1, clickCounter2 = 0;
 	int nClicks1, nClicks2 = 0;
-	ofFbo buffer, buffer2, buffer3;
-	ofShader shader1, shader2, shader3, shader4, lumakey, shader6;
+
+	ofFbo buffer, buffer2, buffer3, textureBuffer;
+	ofShader shader1, shader2, shader3, shader4, lumakey, shader6, textureShader;
+
 	ofVideoGrabber cam;
 	ofVideoPlayer player;
 	ofImage image1, paintImage;
-	ofTexture texture1;
 
 	stringvec videos;
 	stringvec images;
 	stringvec extVideos;
 	stringvec extImages;
 	string path;
+	bool debug;
 	bool isReady;
 	bool noInput;
 	bool camOn;

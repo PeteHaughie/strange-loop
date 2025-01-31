@@ -1,4 +1,4 @@
-#version 120
+OF_GLSL_SHADER_HEADER
 
 uniform sampler2D tex0;
 
@@ -16,7 +16,7 @@ uniform float dispY;
 
 uniform float amount;
 
-varying vec2 texCoordVarying;
+uniform vec2 resolution;
 
 vec3 hsv2rgb(vec3 c) {
   vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
@@ -46,8 +46,10 @@ vec4 wrapSat(vec4 inp, float amount) {
 }
 
 void main() {
-  //pixelated
+  vec2 uv = gl_FragCoord.xy / resolution.xy;
+  uv = clamp(uv, 0.0, 1.0);
 
+  // pixelated
   float in1Scaled = in1 * 8.0;
   float in2Scaled = in2 * 0.8 + 0.1;
   vec3 tc = vec3(1.0, 0.0, 0.0);
@@ -55,12 +57,11 @@ void main() {
   float dx = (1.0 + in1Scaled) * (1.0 / textureWidth);
   float dy = (1.0 + in1Scaled) * (1.0 / textureHeight);
   vec2 coord = vec2(
-    dx * floor((texCoordVarying.x + dispX) / dx),
-    dy * floor((texCoordVarying.y + dispY) / dy)
+    dx * floor((uv.x + dispX) / dx),
+    dy * floor((uv.y + dispY) / dy)
   );
 
   tc = texture2D(tex0, coord).rgb;
-  gl_FragColor = wrapSat(vec4(tc, 1.0), in2Scaled);
-
+  // gl_FragColor = wrapSat(vec4(tc, 1.0), in2Scaled);
+  gl_FragColor = vec4(tc, 1.0);
 }
-

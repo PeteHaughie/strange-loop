@@ -68,6 +68,15 @@
         "memory_resource": "cpp",
         "random": "cpp",
         "type_traits": "cpp",
-        "utility": "cpp"
+        "utility": "cpp",
+        "cstdarg": "cpp",
+        "execution": "cpp",
+        "locale": "cpp",
+        "optional": "cpp",
+        "print": "cpp",
+        "span": "cpp",
+        "variant": "cpp",
+        "bit": "cpp",
+        "format": "cpp"
     }
 }

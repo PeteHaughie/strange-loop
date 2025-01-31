@@ -1,4 +1,4 @@
-#version 120
+OF_GLSL_SHADER_HEADER
 
 uniform sampler2D tex0;
 
@@ -10,7 +10,7 @@ uniform float dispX;
 
 uniform float dispY;
 
-varying vec2 texCoordVarying;
+uniform vec2 resolution;
 
 vec3 hsv2rgb(vec3 c) {
   vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
@@ -29,16 +29,16 @@ vec3 rgb2hsv(vec3 c) {
 }
 
 void main() {
-  //NEGATIVE
-  vec4 color = texture2D(tex0, texCoordVarying + vec2(dispX, dispY));
+  vec2 uv = gl_FragCoord.xy / resolution.xy;
+  uv = clamp(uv, 0.0, 1.0);
+  // NEGATIVE
+  vec4 color = texture2D(tex0, uv + vec2(dispX, dispY));
 
   vec3 invert = rgb2hsv(color.rgb);
   invert.z = 1.0 - invert.z + in1;
   invert.x = 1.0 - invert.x + in2;
 
-  color.rgb = hsv2rgb(invert.xyz);
+  // color.rgb = hsv2rgb(invert.xyz);
 
   gl_FragColor = color;
-
 }
-

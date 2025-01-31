@@ -20,15 +20,17 @@ void ofApp::setup()
 {
 	// default app settings
 	ofSetVerticalSync(true);
-	ofSetFrameRate(60);
+	ofSetFrameRate(30);
+	ofDisableArbTex();
 
 	// shaders
-	shader1.load("shadersES2/shader1");
-	shader2.load("shadersES2/shader2");
-	shader3.load("shadersES2/shader3");
-	shader4.load("shadersES2/shader4");
-	lumakey.load("shadersES2/lumakey");
-	shader6.load("shadersES2/hueShift");
+	shader1.load("shadersES2/default.vert", "shadersES2/shader1.frag");
+	shader2.load("shadersES2/default.vert", "shadersES2/shader2.frag");
+	shader3.load("shadersES2/default.vert", "shadersES2/shader3.frag");
+	shader4.load("shadersES2/default.vert", "shadersES2/shader4.frag");
+	lumakey.load("shadersES2/default.vert", "shadersES2/lumakey.frag");
+	shader6.load("shadersES2/default.vert", "shadersES2/hueShift.frag");
+	textureShader.load("shadersES2/default.vert", "shadersES2/texture.frag");
 
 	// initialize MIDI
 	midiIn.openPort(0); // Use first MIDI port
@@ -64,36 +66,43 @@ void ofApp::setup()
 
 	// ofHideCursor();
 	ofBackground(0, 0, 0);
-	texture1.allocate(ofGetWidth(), ofGetHeight(), GL_RGBA);
 	buffer.allocate(ofGetWidth(), ofGetHeight(), GL_RGBA);
 	buffer2.allocate(ofGetWidth(), ofGetHeight(), GL_RGBA);
 	buffer3.allocate(ofGetWidth(), ofGetHeight(), GL_RGBA);
+	textureBuffer.allocate(ofGetWidth(), ofGetHeight(), GL_RGBA);
 
 	buffer.begin();
 	ofClear(255, 255, 255, 0);
 	buffer.end();
+
 	buffer2.begin();
 	ofClear(255, 255, 255, 0);
 	buffer2.end();
+	
 	buffer3.begin();
 	ofClear(255, 255, 255, 0);
 	buffer3.end();
+	
+	textureBuffer.begin();
+	ofClear(255, 255, 255, 0);
+	textureBuffer.end();
 
 	// The following has to be UNCOMMENTED for NTSC operation ->
 	// system("sudo v4l2-ctl -d /dev/video0 --set-standard=0");
 	cam.setDeviceID(0);
 	cam.setDesiredFrameRate(30);
-	cam.initGrabber(720, 480);
+	cam.setup(720, 480);
 	// The following has to be UNCOMMENTED for PAL operation ->
 	// system("sudo v4l2-ctl -d /dev/video0 --set-standard=6");
 	// cam.setDeviceID(0);
 	// cam.setDesiredFrameRate(25);
-	// cam.initGrabber(720, 576);
+	// cam.setup(720, 576);
 
 	if (cam.isInitialized())
 	{
 		camOn = true;
 	}
+	
 	extVideos.push_back(".mp4");
 	extVideos.push_back(".avi");
 	extVideos.push_back(".flv");
@@ -108,6 +117,7 @@ void ofApp::setup()
 	// system("sudo mount /dev/sda1 /media/pi/USBKey -o uid=pi,gid=pi");
 	getVideos(path, extVideos, videos);
 	getImages(path, extImages, images);
+
 	if (images.size() == 0 && videos.size() == 0 && !cam.isInitialized())
 	{
 		noInput = true;
@@ -118,6 +128,7 @@ void ofApp::setup()
 		player.setLoopState(OF_LOOP_NORMAL);
 		player.play();
 	}
+
 	if (images.size() > 0)
 	{
 		paintImage.load(images[0]);
@@ -126,6 +137,7 @@ void ofApp::setup()
 			paintMode = true;
 		}
 	}
+	ofLog() << textureBuffer.getWidth() << " " << textureBuffer.getHeight();
 }
 
 //--------------------------------------------------------------
@@ -137,27 +149,58 @@ void ofApp::update()
 	if (camOn)
 	{
 		cam.update();
+		if (cam.isFrameNew())
+		{
+			textureBuffer.begin();
+			textureShader.begin();
+			textureShader.setUniform2f("resolution", ofGetWidth(), ofGetHeight());
+			textureShader.setUniformTexture("tex0", cam.getTexture(), 0);
+			// cam.draw(0, 0, ofGetWidth(), ofGetHeight());
+			ofDrawRectangle(0, 0, ofGetWidth(), ofGetHeight());
+			textureShader.end();
+			textureBuffer.end();
+		}
+	}
+	else if (!paintMode)
+	{
+		player.update();
+		if (player.isFrameNew())
+		{
+			textureBuffer.begin();
+			textureShader.begin();
+			textureShader.setUniform2f("resolution", ofGetWidth(), ofGetHeight());
+			textureShader.setUniformTexture("tex0", player.getTexture(), 0);
+			// player.draw(0, 0, ofGetWidth(), ofGetHeight());
+			ofDrawRectangle(0, 0, ofGetWidth(), ofGetHeight());
+			textureShader.end();
+			textureBuffer.end();
+		}
+	}
+	else
+	{
+		textureBuffer.begin();
+		ofClear(255, 255, 255, 0);
+		ofPushMatrix();
+		ofTranslate(paintImage.getWidth() / 2, paintImage.getHeight() / 2);
+		ofTranslate(0, 0, paintZoom);
+		ofTranslate(-paintDispX, -paintDispY);
+		ofRotateZDeg(paintRotate);
+		paintImage.draw(-paintImage.getWidth() / 2, -paintImage.getHeight() / 2);
+		ofPopMatrix();
+		textureBuffer.end();
 	}
 
 	checkClicksRoutine();
 	checkJoysticksRoutine();
 	updateControlsRoutine();
 	checkVideoPlayback();
-	player.update();
-	// if (player.isFrameNew())
-	// {
-	// 	texture1 = player.getTexture();
-	// }
 }
 
 //--------------------------------------------------------------
 void ofApp::draw()
 {
-	ofLog(OF_LOG_NOTICE, "fps: " + ofToString(ofGetFrameRate()) + " xAxis1: " + ofToString(xAxis1) + " yAxis1:" + ofToString(yAxis1) + " xAxis2:" + ofToString(xAxis2) + " yAxis2:" + ofToString(yAxis2));
-	if (!texture1.isAllocated())
-	{
-		return;
-	}
+	// set the fill colour
+	ofSetColor(ofColor::white);
 	if (noInput == true)
 	{
 		image1.draw(0, 0, ofGetWidth(), ofGetHeight());
@@ -165,46 +208,7 @@ void ofApp::draw()
 	else
 	{
 
-		// draw our debug surfaces
-		ofSetColor(ofColor::green);
-		ofDrawBitmapString("fps: " + ofToString((int)ofGetFrameRate()) + ", clicks1: " + ofToString(nClicks1) + ", clicks2: " + ofToString(nClicks2), 20, 20);
-		ofSetColor(ofColor::white);
-		player.draw(20, 50, ofGetWidth() / 4, ofGetHeight() / 4);
-		texture1.draw((ofGetWidth() / 2) - ((ofGetWidth() / 4) / 2), 50, ofGetWidth() / 4, ofGetHeight() / 4);
-		cam.draw(ofGetWidth() - (ofGetWidth() / 4) - 20, 50, ofGetWidth() / 4, ofGetHeight() / 4);
-
-		// buttons
-		ofSetColor(ofMap(button1Value, 0, 1, 0, 255), ofMap(button1Value, 0, 1, 0, 255), ofMap(button1Value, 0, 1, 0, 255), 255);
-		ofDrawCircle(20, ofGetHeight() - 40, 5);
-		ofSetColor(ofMap(button2Value, 0, 1, 0, 255), ofMap(button2Value, 0, 1, 0, 255), ofMap(button2Value, 0, 1, 0, 255), 255);
-		ofDrawCircle(35, ofGetHeight() - 40, 5);
-
-		// potentiometers
-		ofSetColor(ofMap(pot1Value, 0, 1, 0, 255), ofMap(pot1Value, 0, 1, 0, 255), ofMap(pot1Value, 0, 1, 0, 255), 255);
-		ofDrawCircle(20, ofGetHeight() - 25, 5);
-		ofSetColor(ofMap(pot2Value, 0, 1, 0, 255), ofMap(pot2Value, 0, 1, 0, 255), ofMap(pot2Value, 0, 1, 0, 255), 255);
-		ofDrawCircle(35, ofGetHeight() - 25, 5);
-		ofSetColor(ofMap(pot3Value, 0, 1, 0, 255), ofMap(pot3Value, 0, 1, 0, 255), ofMap(pot3Value, 0, 1, 0, 255), 255);
-		ofDrawCircle(50, ofGetHeight() - 25, 5);
-		ofSetColor(ofMap(pot4Value, 0, 1, 0, 255), ofMap(pot4Value, 0, 1, 0, 255), ofMap(pot4Value, 0, 1, 0, 255), 255);
-		ofDrawCircle(65, ofGetHeight() - 25, 5);
-
-		// joystick 1
-		ofSetColor(ofMap(xAxis1, 0, 1, 0, 255), ofMap(xAxis1, 0, 1, 0, 255), ofMap(xAxis1, 0, 1, 0, 255), 255);
-		ofDrawCircle(20, ofGetHeight() - 10, 5);
-		ofSetColor(ofMap(yAxis1, 0, 1, 0, 255), ofMap(yAxis1, 0, 1, 0, 255), ofMap(yAxis1, 0, 1, 0, 255), 255);
-		ofDrawCircle(35, ofGetHeight() - 10, 5);
-		// joystick 2
-		ofSetColor(ofMap(xAxis2, 0, 1, 0, 255), ofMap(xAxis2, 0, 1, 0, 255), ofMap(xAxis2, 0, 1, 0, 255), 255);
-		ofDrawCircle(50, ofGetHeight() - 10, 5);
-		ofSetColor(ofMap(yAxis2, 0, 1, 0, 255), ofMap(yAxis2, 0, 1, 0, 255), ofMap(yAxis2, 0, 1, 0, 255), 255);
-		ofDrawCircle(65, ofGetHeight() - 10, 5);
-
-		// reset the fill colour
-		ofSetColor(ofColor::white);
-
 		buffer.begin();
-
 		switch (selector)
 		{
 		case 1: // CONTRAST
@@ -213,13 +217,12 @@ void ofApp::draw()
 			shader1.setUniform1f("dispX", dispX * 0.04);
 			shader1.setUniform1f("dispY", dispY * 0.04);
 			shader1.setUniform1f("in2", yAxis2);
+			shader1.setUniform2f("resolution", ofGetWidth(), ofGetHeight());
 			ofPushMatrix();
 			ofTranslate(ofGetWidth() / 2, ofGetHeight() / 2, 0);
 			ofRotateZDeg((int)rotate);
 			ofTranslate(0, 0, zoom);
-
-			texture1.draw(-ofGetWidth() / 2, -ofGetHeight() / 2);
-
+			textureBuffer.draw(-ofGetWidth() / 2, -ofGetHeight() / 2);
 			ofPopMatrix();
 			shader1.end();
 			break;
@@ -230,15 +233,12 @@ void ofApp::draw()
 			shader2.setUniform1f("in2", knob);
 			shader2.setUniform1f("dispX", dispX * 0.04);
 			shader2.setUniform1f("dispY", dispY * 0.04);
-
+			shader2.setUniform2f("resolution", ofGetWidth(), ofGetHeight());
 			ofPushMatrix();
-
 			ofTranslate(ofGetWidth() / 2, ofGetHeight() / 2, 0);
 			ofRotateZDeg((int)rotate);
 			ofTranslate(0, 0, zoom);
-
-			texture1.draw(-ofGetWidth() / 2, -ofGetHeight() / 2);
-
+			textureBuffer.draw(-ofGetWidth() / 2, -ofGetHeight() / 2);
 			ofPopMatrix();
 			shader2.end();
 			break;
@@ -249,15 +249,12 @@ void ofApp::draw()
 			shader3.setUniform1f("dispY", dispY * 0.04);
 			shader3.setUniform1f("in1", yAxis2);
 			shader3.setUniform1f("in2", knob);
-
+			shader3.setUniform2f("resolution", ofGetWidth(), ofGetHeight());
 			ofPushMatrix();
-
 			ofTranslate(ofGetWidth() / 2, ofGetHeight() / 2, 0);
 			ofTranslate(0, 0, zoom);
 			ofRotateZDeg((int)rotate);
-
-			texture1.draw(-ofGetWidth() / 2, -ofGetHeight() / 2);
-
+			textureBuffer.draw(-ofGetWidth() / 2, -ofGetHeight() / 2);
 			ofPopMatrix();
 			shader3.end();
 			break;
@@ -269,13 +266,12 @@ void ofApp::draw()
 			shader4.setUniform1f("dispY", dispY * 0.04);
 			shader4.setUniform1f("textureWidth", (float)ofGetWidth());
 			shader4.setUniform1f("textureHeight", (float)ofGetHeight());
+			shader4.setUniform2f("resolution", ofGetWidth(), ofGetHeight());
 			ofPushMatrix();
 			ofTranslate(ofGetWidth() / 2, ofGetHeight() / 2, 0);
 			ofTranslate(0, 0, zoom);
-
 			ofRotateZDeg((int)rotate);
-			texture1.draw(-ofGetWidth() / 2, -ofGetHeight() / 2);
-
+			textureBuffer.draw(-ofGetWidth() / 2, -ofGetHeight() / 2);
 			ofPopMatrix();
 			shader4.end();
 			break;
@@ -287,7 +283,7 @@ void ofApp::draw()
 			ofTranslate(-dispX * 10, -dispY * 10, zoom);
 			if (ofGetFrameNum() % (uint64_t)(1.0 + (knob * 3)) == 0)
 			{
-				texture1.draw(-ofGetWidth() / 2, -ofGetHeight() / 2);
+				textureBuffer.draw(-ofGetWidth() / 2, -ofGetHeight() / 2);
 			}
 			ofPopMatrix();
 			break;
@@ -322,11 +318,15 @@ void ofApp::draw()
 		buffer3.end();
 
 		// Load here the feedback
-		texture1 = buffer3.getTexture();
+		textureBuffer.begin();
+		buffer3.draw(0, 0, ofGetWidth(), ofGetHeight());
+		textureBuffer.end();
+		// textureBuffer.draw(0, 0, ofGetWidth(), ofGetHeight());
+		// texture1 = buffer3.getTexture();
 
-		// FINAL HUE+SAT ADJUST
+		// FINAL HUE + SAT ADJUST
 		shader6.begin();
-
+		shader6.setUniform2f("resolution", ofGetWidth(), ofGetHeight());
 		if (selector == 5)
 		{ // if in no effect mode you can adjust saturation also.
 			shader6.setUniform1f("in2", yAxis2);
@@ -339,6 +339,7 @@ void ofApp::draw()
 		{
 			shader6.setUniform1f("in2", 1.3);
 		}
+		ofDrawRectangle(0, 0, ofGetWidth(), ofGetHeight());
 		shader6.setUniform1f("hue", xAxis2);
 
 		buffer.draw(0, 0);
@@ -346,106 +347,185 @@ void ofApp::draw()
 
 		buffer2.draw(0, 0);
 	}
+	if (debug)
+	{
+		// draw our debug surfaces
+		ofSetColor(ofColor::green);
+		ofDrawBitmapString("fps: " + ofToString((int)ofGetFrameRate()) + ", clicks1: " + ofToString(nClicks1) + ", clicks2: " + ofToString(nClicks2), 20, 20);
+		ofSetColor(ofColor::white);
+		player.draw(20, 50, ofGetWidth() / 4, ofGetHeight() / 4);
+		cam.draw(ofGetWidth() - (ofGetWidth() / 4) - 20, 50, ofGetWidth() / 4, ofGetHeight() / 4);
+		textureBuffer.draw((ofGetWidth() / 2) - ((ofGetWidth() / 4) / 2), (ofGetHeight() / 4) + 50, ofGetWidth() / 4, ofGetHeight() / 4);
+
+		// buttons
+		ofSetColor(ofMap(button1Value, 0, 1, 0, 255), ofMap(button1Value, 0, 1, 0, 255), ofMap(button1Value, 0, 1, 0, 255), 255);
+		ofDrawCircle(20, ofGetHeight() - 40, 5);
+		ofSetColor(ofMap(button2Value, 0, 1, 0, 255), ofMap(button2Value, 0, 1, 0, 255), ofMap(button2Value, 0, 1, 0, 255), 255);
+		ofDrawCircle(35, ofGetHeight() - 40, 5);
+
+		// potentiometers
+		ofSetColor(ofMap(pot1Value, 0, 1, 0, 255), ofMap(pot1Value, 0, 1, 0, 255), ofMap(pot1Value, 0, 1, 0, 255), 255);
+		ofDrawCircle(20, ofGetHeight() - 25, 5);
+		ofSetColor(ofMap(pot2Value, 0, 1, 0, 255), ofMap(pot2Value, 0, 1, 0, 255), ofMap(pot2Value, 0, 1, 0, 255), 255);
+		ofDrawCircle(35, ofGetHeight() - 25, 5);
+		ofSetColor(ofMap(pot3Value, 0, 1, 0, 255), ofMap(pot3Value, 0, 1, 0, 255), ofMap(pot3Value, 0, 1, 0, 255), 255);
+		ofDrawCircle(50, ofGetHeight() - 25, 5);
+		ofSetColor(ofMap(pot4Value, 0, 1, 0, 255), ofMap(pot4Value, 0, 1, 0, 255), ofMap(pot4Value, 0, 1, 0, 255), 255);
+		ofDrawCircle(65, ofGetHeight() - 25, 5);
+
+		// joystick 1
+		ofSetColor(ofMap(xAxis1, 0, 1, 0, 255), ofMap(xAxis1, 0, 1, 0, 255), ofMap(xAxis1, 0, 1, 0, 255), 255);
+		ofDrawCircle(20, ofGetHeight() - 10, 5);
+		ofSetColor(ofMap(yAxis1, 0, 1, 0, 255), ofMap(yAxis1, 0, 1, 0, 255), ofMap(yAxis1, 0, 1, 0, 255), 255);
+		ofDrawCircle(35, ofGetHeight() - 10, 5);
+		// joystick 2
+		ofSetColor(ofMap(xAxis2, 0, 1, 0, 255), ofMap(xAxis2, 0, 1, 0, 255), ofMap(xAxis2, 0, 1, 0, 255), 255);
+		ofDrawCircle(50, ofGetHeight() - 10, 5);
+		ofSetColor(ofMap(yAxis2, 0, 1, 0, 255), ofMap(yAxis2, 0, 1, 0, 255), ofMap(yAxis2, 0, 1, 0, 255), 255);
+		ofDrawCircle(65, ofGetHeight() - 10, 5);
+		// ofLog(OF_LOG_NOTICE, "fps: " + ofToString(ofGetFrameRate()) + " xAxis1: " + ofToString(xAxis1) + " yAxis1:" + ofToString(yAxis1) + " xAxis2:" + ofToString(xAxis2) + " yAxis2:" + ofToString(yAxis2));
+	}
 }
 
 //--------------------------------------------------------------
-void ofApp::checkClicksRoutine() {
-    uint64_t currentTime = ofGetElapsedTimeMillis();
+void ofApp::keyPressed(int key)
+{
+	if (key == 'd')
+	{
+		debug = !debug;
+	}
+}
 
-    // Handle Button 1 clicks
-    if (button1Value) {
-        if (!clickCounter1) { // Start counting clicks
-            clickCounter1 = 1;
-            nClicks1 = 0;
-            ofLogNotice() << "Button 1 pressed, starting click counter.";
-        }
-        if (currentTime - beginTime > timer) { // Debounce logic
-            beginTime = currentTime;
-            nClicks1++;
-            ofLogNotice() << "Button 1 click count: " << nClicks1;
-        }
-    } else if (clickCounter1) { // Button released
-        if (currentTime - beginTime > timer) { // Time elapsed since last click
-            clickCounter1 = 0; // Reset the counter
-            ofLogNotice() << "Button 1 released, total clicks: " << nClicks1;
+//--------------------------------------------------------------
+void ofApp::checkClicksRoutine()
+{
+	uint64_t currentTime = ofGetElapsedTimeMillis();
 
-            switch (nClicks1) {
-                case 1:
-                    xAxis1 = 0; yAxis1 = 0; // Reset position
-                    break;
-                case 2:
-                    sourceParamMode = !sourceParamMode; // Toggle mode
-                    if (sourceParamMode) {
-                        sourceZoomWaitRecall = true;
-                        sourceRotateWaitRecall = true;
-                        xAxis1 = sourceDispX;
-                        yAxis1 = sourceDispY;
-                    } else {
-                        feedbackZoomWaitRecall = true;
-                        feedbackRotateWaitRecall = true;
-                        xAxis1 = dispX;
-                        yAxis1 = dispY;
-                    }
-                    break;
-                case 3:
-                    (!paintMode) ? nextVideo() : nextImage(); // Next video/image
-                    break;
-                default:
-                    break;
-            }
-            nClicks1 = 0; // Reset click count
-        }
-    }
+	// Handle Button 1 clicks
+	if (button1Value)
+	{
+		if (!clickCounter1)
+		{ // Start counting clicks
+			clickCounter1 = 1;
+			nClicks1 = 0;
+			ofLogNotice() << "Button 1 pressed, starting click counter.";
+		}
+		if (currentTime - beginTime > timer)
+		{ // Debounce logic
+			beginTime = currentTime;
+			nClicks1++;
+			ofLogNotice() << "Button 1 click count: " << nClicks1;
+		}
+	}
+	else if (clickCounter1)
+	{ // Button released
+		if (currentTime - beginTime > timer)
+		{					   // Time elapsed since last click
+			clickCounter1 = 0; // Reset the counter
+			ofLogNotice() << "Button 1 released, total clicks: " << nClicks1;
 
-    // Handle Button 2 clicks (similar logic to Button 1)
-    if (button2Value) {
-        if (!clickCounter2) {
-            clickCounter2 = 1;
-            nClicks2 = 0;
-            ofLogNotice() << "Button 2 pressed, starting click counter.";
-        }
-        if (currentTime - beginTime > timer) {
-            beginTime = currentTime;
-            nClicks2++;
-            ofLogNotice() << "Button 2 click count: " << nClicks2;
-        }
-    } else if (clickCounter2) {
-        if (currentTime - beginTime > timer) {
-            clickCounter2 = 0;
-            ofLogNotice() << "Button 2 released, total clicks: " << nClicks2;
+			switch (nClicks1)
+			{
+			case 1:
+				xAxis1 = 0;
+				yAxis1 = 0; // Reset position
+				break;
+			case 2:
+				sourceParamMode = !sourceParamMode; // Toggle mode
+				if (sourceParamMode)
+				{
+					sourceZoomWaitRecall = true;
+					sourceRotateWaitRecall = true;
+					xAxis1 = sourceDispX;
+					yAxis1 = sourceDispY;
+				}
+				else
+				{
+					feedbackZoomWaitRecall = true;
+					feedbackRotateWaitRecall = true;
+					xAxis1 = dispX;
+					yAxis1 = dispY;
+				}
+				break;
+			case 3:
+				(!paintMode) ? nextVideo() : nextImage(); // Next video/image
+				break;
+			default:
+				break;
+			}
+			nClicks1 = 0; // Reset click count
+		}
+	}
 
-            switch (nClicks2) {
-                case 1:
-                    xAxis2 = 0.0; yAxis2 = 0.5;
-                    buffer.begin(); ofClear(255, 255, 255, 0); buffer.end();
-                    buffer2.begin(); ofClear(255, 255, 255, 0); buffer2.end();
-                    buffer3.begin(); ofClear(255, 255, 255, 0); buffer3.end();
-                    break;
-                case 2:
-                    selector = (selector < 5) ? selector + 1 : 1; // Change feedback mode
-                    break;
-                case 3:
-                    if (!images.empty()) {
-                        paintMode = !paintMode;
-                        if (paintMode) {
-                            xAxis1 = 0; yAxis1 = 0;
-                        } else {
-                            feedbackRotateWaitRecall = true;
-                            feedbackZoomWaitRecall = true;
-                            xAxis1 = dispX;
-                            yAxis1 = dispY;
-                        }
-                    }
-                    break;
-                case 4:
-                    if (cam.isInitialized() && !videos.empty()) camOn = !camOn; // Toggle camera mode
-                    break;
-                default:
-                    break;
-            }
-            nClicks2 = 0;
-        }
-    }
+	// Handle Button 2 clicks (similar logic to Button 1)
+	if (button2Value)
+	{
+		if (!clickCounter2)
+		{
+			clickCounter2 = 1;
+			nClicks2 = 0;
+			ofLogNotice() << "Button 2 pressed, starting click counter.";
+		}
+		if (currentTime - beginTime > timer)
+		{
+			beginTime = currentTime;
+			nClicks2++;
+			ofLogNotice() << "Button 2 click count: " << nClicks2;
+		}
+	}
+	else if (clickCounter2)
+	{
+		if (currentTime - beginTime > timer)
+		{
+			clickCounter2 = 0;
+			ofLogNotice() << "Button 2 released, total clicks: " << nClicks2;
+
+			switch (nClicks2)
+			{
+			case 1:
+				xAxis2 = 0.0;
+				yAxis2 = 0.5;
+				buffer.begin();
+				ofClear(255, 255, 255, 0);
+				buffer.end();
+				buffer2.begin();
+				ofClear(255, 255, 255, 0);
+				buffer2.end();
+				buffer3.begin();
+				ofClear(255, 255, 255, 0);
+				buffer3.end();
+				break;
+			case 2:
+				selector = (selector < 5) ? selector + 1 : 1; // Change feedback mode
+				break;
+			case 3:
+				if (!images.empty())
+				{
+					paintMode = !paintMode;
+					if (paintMode)
+					{
+						xAxis1 = 0;
+						yAxis1 = 0;
+					}
+					else
+					{
+						feedbackRotateWaitRecall = true;
+						feedbackZoomWaitRecall = true;
+						xAxis1 = dispX;
+						yAxis1 = dispY;
+					}
+				}
+				break;
+			case 4:
+				if (cam.isInitialized() && !videos.empty())
+					camOn = !camOn; // Toggle camera mode
+				break;
+			default:
+				break;
+			}
+			nClicks2 = 0;
+		}
+	}
 }
 
 //--------------------------------------------------------------
@@ -782,9 +862,10 @@ void ofApp::checkVideoPlayback()
 //--------------------------------------------------------------
 void ofApp::newMidiMessage(ofxMidiMessage &message)
 {
-    if (message.status == MIDI_CONTROL_CHANGE) {
-        midiCCValues[message.control] = message.value / 127.0f; // Normalize 0–127 to 0.0–1.0
-    }
+	if (message.status == MIDI_CONTROL_CHANGE)
+	{
+		midiCCValues[message.control] = message.value / 127.0f; // Normalize 0–127 to 0.0–1.0
+	}
 }
 
 //--------------------------------------------------------------
