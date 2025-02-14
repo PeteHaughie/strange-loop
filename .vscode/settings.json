@@ -77,6 +77,9 @@
         "span": "cpp",
         "variant": "cpp",
         "bit": "cpp",
-        "format": "cpp"
-    }
+        "format": "cpp",
+        "system_error": "cpp",
+        "cinttypes": "cpp"
+    },
+    "C_Cpp.errorSquiggles": "disabled"
 }
